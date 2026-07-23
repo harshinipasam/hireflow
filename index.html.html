@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitment — Candidate Scoring Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#F6F5F1; --surface:#FFFFFF; --surface-alt:#ECEAE3;
+    --ink:#1C2333; --ink-soft:#4A4F5C; --muted:#8A8B85; --border:#DEDCD3;
+    --accent:#3654A6; --accent-soft:#E7EBF7;
+    --green:#2F7D5A; --green-soft:#E4F0EA;
+    --amber:#C77B27; --amber-soft:#F7EBDB;
+    --red:#B14444; --red-soft:#F5E4E2;
+    --font-display:'Fraunces',serif; --font-body:'Inter',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:var(--font-body); background:var(--bg); color:var(--ink); }
+  a { color:inherit; text-decoration:none; }
+  button { font-family:inherit; }
+
+  /* ============ LOGIN VIEW ============ */
+  #view-login { display:flex; min-height:100vh; }
+  .brand-panel { flex:1 1 44%; background:var(--ink); color:#F6F5F1; display:flex; flex-direction:column; justify-content:space-between; padding:48px 56px; position:relative; overflow:hidden; }
+  .brand-mark { font-family:var(--font-display); font-size:22px; font-weight:500; }
+  .brand-hero { max-width:420px; }
+  .brand-hero h1 { font-family:var(--font-display); font-weight:500; font-size:38px; line-height:1.15; margin-bottom:18px; }
+  .brand-hero p { font-size:15px; line-height:1.7; color:#C7CADA; }
+  .dot-scale-row { display:flex; gap:8px; margin:24px 0; }
+  .dot-scale-row .dot { width:12px; height:12px; border-radius:50%; border:1.5px solid #7F86A8; }
+  .dot-scale-row .dot.filled { background:#6C86D6; border-color:#6C86D6; }
+  .brand-footnote { font-size:12px; color:#8990AC; line-height:1.6; max-width:380px; }
+  .form-panel { flex:1 1 56%; display:flex; align-items:center; justify-content:center; padding:40px; }
+  .form-card { width:100%; max-width:380px; }
+  .form-card .eyebrow { font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .form-card h2 { font-family:var(--font-display); font-weight:500; font-size:28px; margin-bottom:8px; }
+  .form-card .sub { font-size:14px; color:var(--ink-soft); margin-bottom:28px; }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:12.5px; font-weight:500; margin-bottom:6px; color:var(--ink-soft); }
+  .field input, .field textarea, .field select { width:100%; padding:11px 13px; font-size:13.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border); border-radius:6px; outline:none; }
+  .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .field[data-emp] { display:none; }
+  .btn-primary { padding:12px 20px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .btn-primary:hover { background:#2C4890; }
+  .btn-primary.full { width:100%; padding:13px; }
+  .btn-secondary { padding:10px 18px; background:var(--surface); border:1px solid var(--border); border-radius:6px; font-size:13.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; }
+  .form-footnote { margin-top:22px; font-size:12.5px; text-align:center; color:var(--muted); }
+
+  /* ============ APP SHELL (post-login) ============ */
+  #view-app { display:none; }
+  .navbar { height:60px; background:var(--ink); color:#F6F5F1; display:flex; align-items:center; justify-content:space-between; padding:0 24px; position:sticky; top:0; z-index:20; }
+  .navbar .brand { font-family:var(--font-display); font-size:18px; font-weight:500; display:flex; align-items:center; gap:10px; }
+  .navbar .brand .dot-scale { display:flex; gap:3px; }
+  .navbar .brand .dot-scale span { width:5px; height:5px; border-radius:50%; background:#6C86D6; }
+  .navbar .brand .dot-scale span:nth-child(4), .navbar .brand .dot-scale span:nth-child(5) { background:#3B4468; }
+  .navbar .nav-links { display:flex; gap:26px; font-size:13px; font-weight:500; }
+  .navbar .nav-links button { background:none; border:none; color:#B9BDD1; padding:6px 0; border-bottom:2px solid transparent; cursor:pointer; font-size:13px; font-weight:500; }
+  .navbar .nav-links button.active { color:#fff; border-color:#6C86D6; }
+  .navbar .nav-right { display:flex; align-items:center; gap:14px; }
+  .navbar .signed-in-as { font-size:12px; color:#B9BDD1; }
+  .navbar .avatar { width:30px; height:30px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; cursor:pointer; }
+
+  .app-body { display:flex; min-height:calc(100vh - 60px); }
+  .sidebar { width:220px; background:var(--surface); border-right:1px solid var(--border); padding:22px 12px; flex-shrink:0; }
+  .sidebar .section-label { display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:0 10px; margin:16px 0 8px; }
+  .sidebar .section-label:first-child { margin-top:0; }
+  .sidebar .add-role-btn { background:none; border:none; color:var(--accent); font-size:13px; font-weight:700; cursor:pointer; line-height:1; }
+  .sidebar-link { display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; padding:9px 10px; border-radius:6px; font-size:13.5px; font-weight:500; color:var(--ink-soft); margin-bottom:2px; cursor:pointer; }
+  .sidebar-link .ic { width:16px; height:16px; border-radius:4px; background:var(--surface-alt); flex-shrink:0; }
+  .sidebar-link.active { background:var(--accent-soft); color:var(--accent); }
+  .sidebar-link.active .ic { background:var(--accent); }
+  .sidebar-link:hover:not(.active) { background:var(--surface-alt); }
+  .role-row { margin-bottom:6px; }
+  .role-skills { font-size:10.5px; color:var(--muted); padding:2px 10px 8px 36px; line-height:1.4; }
+  .role-skills-heading { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-top:6px; }
+  .role-skills-heading:first-child { margin-top:0; }
+  .role-edit-skills { color:var(--accent); font-weight:700; cursor:pointer; margin-left:4px; white-space:nowrap; }
+  .skill-chip-label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  .skill-chip-list { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+  .skill-chip-list-row { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px; }
+  .skill-chip { display:block; background:var(--accent-soft); color:var(--accent); font-size:11.5px; font-weight:600; padding:4px 12px; border-radius:12px; }
+  .skill-chip.good { background:var(--green-soft); color:var(--green); }
+  .skills-dash-block { margin-bottom:10px; }
+
+  /* ============ SKILLS EDIT MODAL ============ */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(28,35,51,.45); z-index:100; align-items:center; justify-content:center; padding:24px; }
+  .modal-overlay.open { display:flex; }
+  .modal-card { background:var(--surface); border-radius:12px; padding:26px 28px; width:100%; max-width:540px; max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.28); }
+  .modal-card h3 { font-family:var(--font-display); font-weight:500; font-size:19px; margin-bottom:4px; }
+  .modal-card .modal-sub { font-size:12.5px; color:var(--muted); margin-bottom:20px; }
+  .skills-modal-section { margin-bottom:20px; }
+  .skills-modal-heading { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:9px; }
+  .skills-modal-inputs { display:flex; flex-direction:column; gap:8px; }
+  .skills-modal-inputs input { width:100%; padding:9px 12px; font-size:13.5px; color:var(--ink); border:1px solid var(--border); border-radius:6px; outline:none; background:var(--surface); }
+  .skills-modal-inputs input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+
+  .main { flex:1; padding:26px 32px 60px; max-width:1180px; }
+  .view-section { display:none; }
+  .view-section.active { display:block; }
+
+  .page-head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; }
+  .page-head h1 { font-family:var(--font-display); font-weight:500; font-size:25px; }
+  .page-head p { font-size:13px; color:var(--muted); margin-top:4px; }
+
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .stat-card .label { font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .stat-card .value { font-family:var(--font-mono); font-size:25px; font-weight:500; }
+  .stat-card.green .value { color:var(--green); }
+  .stat-card.red .value { color:var(--red); }
+
+  .panel-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; }
+  .panel h3 { font-size:13.5px; font-weight:600; margin-bottom:3px; }
+  .panel .panel-sub { font-size:12px; color:var(--muted); margin-bottom:16px; }
+
+  /* ================= FIXED SCORE GAUGE: readout is absolutely
+     positioned inside a sized wrapper, never relies on a fixed
+     negative-margin hack that broke across differently-sized gauges ================= */
+  .gauge-wrap { display:flex; flex-direction:column; align-items:center; }
+  .gauge-canvas { position:relative; }
+  .gauge-canvas svg { display:block; }
+  .gauge-readout { position:absolute; left:0; right:0; bottom:2px; text-align:center; font-family:var(--font-mono); font-weight:500; line-height:1; pointer-events:none; }
+  .gauge-readout .of100 { color:var(--muted); }
+  .gauge-status { margin-top:6px; font-size:12px; font-weight:600; padding:4px 12px; border-radius:12px; }
+  .gauge-status.green { background:var(--green-soft); color:var(--green); }
+  .gauge-status.amber { background:var(--amber-soft); color:var(--amber); }
+  .gauge-status.red { background:var(--red-soft); color:var(--red); }
+  .gauge-status.pending { background:var(--surface-alt); color:var(--muted); }
+
+  .list-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .list-head h2 { font-family:var(--font-display); font-weight:500; font-size:18px; }
+  .list-head .count-tag { font-family:var(--font-mono); font-size:11.5px; color:var(--muted); }
+  .list-col-header { display:grid; grid-template-columns:auto 1fr auto 150px auto auto; align-items:center; gap:14px; padding:0 18px 8px; font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .list-col-header span:first-child { visibility:hidden; }
+  .candidate-list { display:flex; flex-direction:column; gap:10px; }
+  .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:13px; background:var(--surface); border:1px dashed var(--border); border-radius:10px; }
+
+  .candidate-card { display:grid; grid-template-columns:auto 1fr auto 150px auto auto; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; cursor:pointer; transition:border-color .12s, background .12s; }
+  .candidate-card:hover { border-color:var(--accent); background:var(--accent-soft); }
+  .candidate-card .initials { width:38px; height:38px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+  .candidate-card .name { font-size:14px; font-weight:600; }
+  .candidate-card .meta { font-size:12px; color:var(--muted); margin-top:2px; }
+  .candidate-card .score { font-family:var(--font-mono); font-size:19px; font-weight:500; text-align:right; }
+  .candidate-card .status-pill { font-size:11.5px; font-weight:600; padding:4px 11px; border-radius:12px; text-align:center; white-space:nowrap; }
+  .status-pill.green { background:var(--green-soft); color:var(--green); }
+  .status-pill.amber { background:var(--amber-soft); color:var(--amber); }
+  .status-pill.red { background:var(--red-soft); color:var(--red); }
+  .status-pill.pending { background:var(--surface-alt); color:var(--muted); }
+  .candidate-card .actions { display:flex; align-items:center; gap:12px; }
+  .candidate-card .edit-link { font-size:12.5px; font-weight:600; color:var(--accent); }
+  .candidate-card .view-arrow { font-size:15px; font-weight:600; color:var(--muted); }
+  .candidate-card:hover .view-arrow { color:var(--accent); }
+
+  /* admin console */
+  .recruiter-row { display:grid; grid-template-columns:1fr auto auto auto auto; align-items:center; gap:16px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
+  .recruiter-row .email { font-size:13.5px; font-weight:600; }
+  .recruiter-row .sub { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .recruiter-row .count-badge { font-family:var(--font-mono); font-size:13px; font-weight:600; text-align:center; min-width:36px; }
+  .recruiter-row .btn-download, .recruiter-row .btn-opensheet { padding:8px 14px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .recruiter-row .btn-opensheet { background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); }
+  .recruiter-row .btn-download:hover { background:#2C4890; }
+  .recruiter-row .btn-opensheet:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  .recruiter-row .btn-download:disabled, .recruiter-row .btn-opensheet:disabled { background:var(--surface-alt); color:var(--muted); cursor:not-allowed; border-color:var(--border); }
+
+  .progress-bar { width:100%; height:7px; border-radius:4px; background:var(--surface-alt); overflow:hidden; }
+  .progress-bar .fill { height:100%; border-radius:4px; transition:width .25s ease; }
+  .progress-bar .fill.green { background:var(--green); } .progress-bar .fill.amber { background:var(--amber); }
+  .progress-bar .fill.red { background:var(--red); } .progress-bar .fill.accent { background:var(--accent); }
+
+  /* form view */
+  .form-cols { display:flex; gap:24px; }
+  .form-main { flex:1 1 64%; }
+  .form-side { flex:1 1 36%; max-width:320px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 22px; margin-bottom:16px; }
+  .card h3 { font-size:14px; font-weight:600; margin-bottom:3px; }
+  .card-sub { font-size:12px; color:var(--muted); margin-bottom:16px; }
+  .field-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px; }
+  .cat-subtotal { font-family:var(--font-mono); font-size:14px; font-weight:600; }
+  .cat-subtotal .wt { font-size:10px; color:var(--muted); font-weight:400; margin-left:4px; }
+  .rating-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); gap:14px; }
+  .rating-row:last-child { border-bottom:none; }
+  .rating-name { font-size:13px; font-weight:500; }
+  .dot-select { display:flex; gap:5px; flex-shrink:0; }
+  .dot-select button { width:25px; height:25px; border-radius:50%; border:1.5px solid var(--border); background:var(--surface); cursor:pointer; font-family:var(--font-mono); font-size:10.5px; color:var(--muted); display:flex; align-items:center; justify-content:center; }
+  .dot-select button:hover { border-color:var(--accent); color:var(--accent); }
+  .dot-select button.selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .form-side .card { position:sticky; top:80px; text-align:center; }
+  .subtotal-list { text-align:left; margin-top:16px; font-size:12px; }
+  .subtotal-list .row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); }
+  .subtotal-list .row:last-child { border-bottom:none; font-weight:600; }
+  .subtotal-list .row span:last-child { font-family:var(--font-mono); }
+  .form-actions { display:flex; justify-content:flex-end; gap:10px; }
+  .live-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--green); font-weight:600; }
+  .live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .edit-banner { background:var(--accent-soft); color:var(--accent); border-radius:8px; padding:10px 14px; font-size:12.5px; font-weight:600; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; }
+  .edit-banner button { background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; font-size:12px; }
+
+  /* assessment view */
+  .breadcrumb { font-size:12px; color:var(--muted); margin-bottom:14px; }
+  .breadcrumb button { background:none; border:none; color:var(--accent); font-weight:500; cursor:pointer; font-size:12px; padding:0; }
+  .assessment-layout { display:flex; gap:20px; align-items:flex-start; }
+  .assess-list-col { width:260px; flex-shrink:0; position:sticky; top:84px; }
+  .assess-list-col h3 { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .assess-list-col .panel-sub { font-size:11.5px; color:var(--muted); margin-bottom:12px; }
+  .assess-list-col .card { padding:14px; }
+  .mini-candidate-list { display:flex; flex-direction:column; gap:6px; max-height:calc(100vh - 220px); overflow-y:auto; }
+  .mini-candidate { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; cursor:pointer; border:1px solid transparent; }
+  .mini-candidate:hover { background:var(--surface-alt); }
+  .mini-candidate.selected { background:var(--accent-soft); border-color:var(--accent); }
+  .mini-candidate .initials { width:30px; height:30px; border-radius:50%; background:var(--surface-alt); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; flex-shrink:0; }
+  .mini-candidate.selected .initials { background:var(--accent); color:#fff; }
+  .mini-candidate .info { flex:1; min-width:0; }
+  .mini-candidate .name { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mini-candidate .meta { font-size:10.5px; color:var(--muted); }
+  .mini-candidate .score { font-family:var(--font-mono); font-size:12.5px; font-weight:600; flex-shrink:0; }
+  .mini-candidate .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .mini-candidate .dot.green { background:var(--green); } .mini-candidate .dot.amber { background:var(--amber); }
+  .mini-candidate .dot.red { background:var(--red); } .mini-candidate .dot.pending { background:var(--muted); }
+  .assess-detail-col { flex:1; min-width:0; }
+  .candidate-header { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:22px 26px; margin-bottom:20px; }
+  .candidate-header .left { display:flex; align-items:center; gap:16px; }
+  .candidate-header .initials { width:52px; height:52px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; }
+  .candidate-header h1 { font-family:var(--font-display); font-weight:500; font-size:22px; }
+  .candidate-header .meta { font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .candidate-header .right-col { text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .candidate-header .recommendation { font-size:13px; font-weight:600; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+  .profile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 20px; font-size:13.5px; }
+  .profile-label { display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:3px; }
+  .breakdown-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .breakdown-table th { text-align:left; color:var(--muted); font-weight:500; padding:6px 8px; border-bottom:1px solid var(--border); }
+  .breakdown-table td { padding:8px 8px; border-bottom:1px solid var(--border); }
+  .breakdown-table tr:last-child td { border-bottom:none; }
+  .notes-panel { font-size:13px; line-height:1.6; color:var(--ink-soft); white-space:pre-wrap; }
+
+  @media (max-width:980px) {
+    .sidebar { display:none; } .stat-grid { grid-template-columns:repeat(2,1fr); }
+    .panel-row, .grid-2, .form-cols { grid-template-columns:1fr; flex-direction:column; }
+    .assessment-layout { flex-direction:column; } .assess-list-col { width:100%; position:static; }
+    .candidate-card { grid-template-columns:auto 1fr auto; }
+    .candidate-card .status-pill, .candidate-card .edit-link { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     LOGIN VIEW
+================================================================= -->
+<div id="view-login">
+  <div class="brand-panel">
+    <div class="brand-mark">Fitment</div>
+    <div class="brand-hero">
+      <h1>Score every candidate the same way, every time.</h1>
+      <div class="dot-scale-row" aria-hidden="true">
+        <span class="dot filled"></span><span class="dot filled"></span><span class="dot filled"></span><span class="dot filled"></span><span class="dot"></span>
+      </div>
+      <p>Nine weighted parameters, one consistent 0–5 scale, and a fitment score your whole team can trust. Each recruiter gets their own workspace and roles.</p>
+    </div>
+    <div class="brand-footnote">Fitment scores are a screening aid, not a hiring decision — interviews and client priorities still lead.</div>
+  </div>
+  <div class="form-panel">
+    <div class="form-card">
+      <div class="eyebrow">Recruiter access</div>
+      <h2>Sign in</h2>
+      <p class="sub">Any email + password signs you in. Your candidates and roles are saved under your email for this session.</p>
+      <form id="loginForm">
+        <div class="field"><label>Work email</label><input type="email" id="loginEmail" placeholder="you@agency.com" required></div>
+        <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••" required></div>
+        <button type="submit" class="btn-primary full">Sign in</button>
+      </form>
+      <p class="form-footnote">Demo tool — sign in with a different email to see a separate recruiter's workspace.<br>Sign in as <strong>admin@fitment.com</strong> to open the Admin Console.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     APP SHELL — shown after login
+================================================================= -->
+<div id="view-app">
+  <nav class="navbar">
+    <div class="brand"><span class="dot-scale" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>Fitment</div>
+    <div class="nav-links">
+      <button data-view="dashboard" onclick="navigateTo('dashboard')">Dashboard</button>
+      <button data-view="form" onclick="startAddCandidate()">Add candidate</button>
+      <button data-view="assessment" onclick="navigateTo('assessment')">Assessment</button>
+      <button data-view="admin" id="navAdminBtn" onclick="navigateTo('admin')" style="display:none;">Admin Console</button>
+    </div>
+    <div class="nav-right">
+      <span class="signed-in-as" id="syncStatus" style="display:none;font-size:11.5px;"></span>
+      <span class="signed-in-as" id="signedInAs"></span>
+      <div class="avatar" id="navAvatar" title="Sign out" onclick="signOut()">?</div>
+    </div>
+  </nav>
+
+  <div class="app-body">
+    <aside class="sidebar" id="recruiterSidebar">
+      <div class="section-label">Workspace</div>
+      <button class="sidebar-link" data-view="dashboard" onclick="navigateTo('dashboard')"><span class="ic"></span> Dashboard</button>
+      <button class="sidebar-link" data-view="form" onclick="startAddCandidate()"><span class="ic"></span> Add candidate</button>
+      <button class="sidebar-link" data-view="assessment" onclick="navigateTo('assessment')"><span class="ic"></span> Assessments</button>
+
+      <div class="section-label">Roles <button class="add-role-btn" onclick="addRole()" title="Add a role">+</button></div>
+      <div id="roleList"></div>
+    </aside>
+
+    <main class="main">
+
+      <!-- ============ DASHBOARD VIEW ============ -->
+      <section class="view-section" id="view-dashboard">
+        <div class="page-head">
+          <div>
+            <h1>Recruitment fitment dashboard</h1>
+            <p id="dashRoleSub">Loading role...</p>
+            <div id="dashTopSkills" style="margin-top:8px;"></div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-secondary" onclick="downloadMySheet()">Download my data (CSV)</button>
+            <button class="btn-primary" onclick="startAddCandidate()">+ Add candidate</button>
+          </div>
+        </div>
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="panel-row">
+          <div class="panel">
+            <h3>Average fitment score</h3>
+            <div class="panel-sub">Across all candidates for this role</div>
+            <div class="gauge-wrap"><div id="dashGauge"></div><div id="dashGaugeStatus" class="gauge-status pending">No candidates yet</div></div>
+          </div>
+          <div class="panel">
+            <h3>Status breakdown</h3>
+            <div class="panel-sub">Green ≥ 60 · Orange 50–59 · Red &lt; 50</div>
+            <canvas id="statusPie" height="180"></canvas>
+          </div>
+        </div>
+        <div class="list-head"><h2>All candidates</h2><span class="count-tag" id="dashListCount"></span></div>
+        <div class="list-col-header" id="candidateListHeader" style="display:none;">
+          <span>·</span><span>Candidate</span><span>Score</span><span>Fitment</span><span>Status</span><span>Actions</span>
+        </div>
+        <div class="candidate-list" id="candidateList"></div>
+      </section>
+
+      <!-- ============ ADD / EDIT CANDIDATE FORM VIEW ============ -->
+      <section class="view-section" id="view-form">
+        <div class="page-head"><div><h1 id="formTitle">Add candidate</h1><p id="formSub">Rate each parameter 0 to 5 — everything below updates live</p></div></div>
+        <div class="form-cols">
+          <div class="form-main">
+            <div class="edit-banner" id="editBanner" style="display:none;">
+              <span>Editing an existing candidate — saving will update their record, not create a new one.</span>
+              <button onclick="startAddCandidate()">Discard &amp; add new instead</button>
+            </div>
+            <div class="card">
+              <h3>Candidate details</h3><div class="card-sub">Contact and background information</div>
+              <div class="field-grid">
+                <div class="field"><label>Candidate name *</label><input type="text" id="fName" placeholder="Full name"></div>
+                <div class="field"><label>Contact No.</label><input type="text" id="fContact" placeholder="+91 98765 43210"></div>
+                <div class="field"><label>Email ID</label><input type="email" id="fEmail" placeholder="name@email.com"></div>
+                <div class="field"><label>DOB</label><input type="date" id="fDob"></div>
+                <div class="field"><label>PAN No.</label><input type="text" id="fPan" placeholder="ABCDE1234F" style="text-transform:uppercase;"></div>
+                <div class="field"><label>Skill Set</label><input type="text" id="fSkillSet" placeholder="Java, Selenium, SQL..."></div>
+                <div class="field"><label>Current Location</label><input type="text" id="fCurrentLocation" placeholder="Hyderabad"></div>
+                <div class="field"><label>Preferred Location</label><input type="text" id="fPreferredLocation" placeholder="Bengaluru"></div>
+                <div class="field"><label>Exp (yrs)</label><input type="number" id="fExperience" placeholder="6"></div>
+                <div class="field"><label>Rel Exp (yrs)</label><input type="number" id="fRelExp" placeholder="4"></div>
+                <div class="field"><label>Company Name</label><input type="text" id="fCompany" placeholder="Current employer"></div>
+                <div class="field"><label>Open to Work</label>
+                  <select id="fOpenToWork"><option value="">—</option><option value="YES">YES</option><option value="NO">NO</option></select>
+                </div>
+                <div class="field"><label>LinkedIn ID</label><input type="text" id="fLinkedin" placeholder="linkedin.com/in/..."></div>
+                <div class="field"><label>Naukri</label>
+                  <select id="fNaukri"><option value="">—</option><option value="YES">YES</option><option value="NO">NO</option></select>
+                </div>
+                <div class="field"><label>Certification</label><input type="text" id="fCertification" placeholder="e.g. ISTQB, AWS..."></div>
+                <div class="field"><label>CTC</label><input type="number" id="fCurrentCtc" placeholder="1200000"></div>
+                <div class="field"><label>E-CTC</label><input type="number" id="fExpectedCtc" placeholder="1500000"></div>
+                <div class="field"><label>Notice Period</label><input type="text" id="fNotice" placeholder="30 days"></div>
+                <div class="field"><label>Highest Qualification</label><input type="text" id="fHighestQualification" placeholder="B.Tech, MBA..."></div>
+                <div class="field"><label>Source</label><input type="text" id="fSource" placeholder="LinkedIn, Referral..."></div>
+                <div class="field" data-emp="C2H"><label>Bill Rate</label><input type="text" id="fBillRate" placeholder="e.g. ₹800/hr"></div>
+                <div class="field" data-emp="C2H"><label>DOJ</label><input type="date" id="fDoj"></div>
+                <div class="field" data-emp="FTE"><label>Date</label><input type="date" id="fDate"></div>
+                <div class="field" data-emp="FTE"><label>Position</label><input type="text" id="fPosition" placeholder="Role / position title"></div>
+                <div class="field" data-emp="FTE"><label>Bill Value/Month</label><input type="number" id="fBillValueMonth" placeholder="e.g. 150000"></div>
+                <div class="field" data-emp="FTE"><label>Availability</label><input type="text" id="fAvailability" placeholder="Immediate, 30 days..."></div>
+              </div>
+            </div>
+            <div id="formCategoryCards"></div>
+            <div class="card">
+              <h3>Interviewer notes</h3><div class="card-sub">Free-form observations, not scored</div>
+              <div class="field"><textarea id="fNotes" rows="3" placeholder="e.g. Strong technically, verify SQL depth..."></textarea></div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" onclick="navigateTo('dashboard')">Cancel</button>
+              <button class="btn-primary" id="saveBtn" onclick="saveCandidate()">Save candidate</button>
+            </div>
+          </div>
+          <div class="form-side">
+            <div class="card">
+              <div class="live-tag"><span class="live-dot"></span> LIVE</div>
+              <h3 style="margin:6px 0 2px;">Fitment preview</h3>
+              <div id="formGauge"></div>
+              <div id="formGaugeStatus" class="gauge-status pending">Awaiting ratings</div>
+              <div class="subtotal-list" id="formSubtotalList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ASSESSMENT DETAIL VIEW ============ -->
+      <section class="view-section" id="view-assessment">
+        <div class="breadcrumb"><button onclick="navigateTo('dashboard')">Dashboard</button> / <span id="assessBreadcrumb">Candidate</span></div>
+        <div class="assessment-layout">
+          <div class="assess-list-col">
+            <div class="card">
+              <h3>All candidates</h3>
+              <div class="panel-sub" id="assessListCount">0 candidates</div>
+              <div class="mini-candidate-list" id="assessCandidateList"></div>
+            </div>
+          </div>
+          <div class="assess-detail-col" id="assessmentContent"></div>
+        </div>
+      </section>
+
+      <!-- ============ ADMIN CONSOLE VIEW ============ -->
+      <section class="view-section" id="view-admin">
+        <div class="page-head">
+          <div><h1>Admin console</h1><p id="adminSourceNote">Every recruiter who has signed into this tool, with a downloadable sheet of their candidates</p></div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-secondary" id="openMasterSheetBtn" onclick="openMasterSheet()" style="display:none;">Open master Sheet ↗</button>
+            <button class="btn-primary" onclick="renderAdmin()">Refresh</button>
+          </div>
+        </div>
+        <div class="stat-grid" id="adminStatGrid"></div>
+        <div class="list-col-header" id="adminListHeader" style="grid-template-columns:1fr auto auto auto auto; display:none;">
+          <span>Recruiter</span><span>Roles</span><span>Candidates</span><span>Sheet</span><span>Actions</span>
+        </div>
+        <div class="candidate-list" id="adminRecruiterList"></div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ================================================================
+     EMPLOYMENT TYPE MODAL — first step of adding a role: choose
+     Contract-to-Hire vs Full-Time Employment. Drives which fields show
+     up in the candidate details form for this role.
+================================================================= -->
+<div class="modal-overlay" id="empTypeModalOverlay">
+  <div class="modal-card" style="max-width:440px;">
+    <h3>New role — engagement type</h3>
+    <p class="modal-sub">Choose how this role is being hired for. This decides which fields show up on the candidate details form for it.</p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:6px;">
+      <button class="btn-secondary" style="text-align:left; padding:14px 16px;" onclick="chooseEmploymentType('C2H')">
+        <div style="font-weight:700; color:var(--ink); margin-bottom:3px;">C2H — Contract to Hire</div>
+        <div style="font-size:12px; color:var(--muted);">Candidate details: Name, Skill, Contact #, Exp, Location, Bill rate, DOJ</div>
+      </button>
+      <button class="btn-secondary" style="text-align:left; padding:14px 16px;" onclick="chooseEmploymentType('FTE')">
+        <div style="font-weight:700; color:var(--ink); margin-bottom:3px;">FTE — Full Time Employment</div>
+        <div style="font-size:12px; color:var(--muted);">Candidate details: Date, Position, Candidate name, Contact, Email ID, Total Exp, Rel Exp, Qualification, Notice Period, Current/Preferred Location, Company, Bill Value/Month, Availability</div>
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeEmpTypeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     SKILLS EDIT MODAL — used for every role (add or edit), lets the
+     recruiter set 5 Must-Have Skills and 5 Good-to-Have Skills.
+================================================================= -->
+<div class="modal-overlay" id="skillsModalOverlay">
+  <div class="modal-card">
+    <h3 id="skillsModalTitle">Edit skills</h3>
+    <p class="modal-sub">These show up wherever this role appears — sidebar, dashboard, and candidate scoring.</p>
+
+    <div class="skills-modal-section">
+      <div class="skills-modal-heading">Must have skills</div>
+      <div class="skills-modal-inputs" id="mustHaveSkillInputs"></div>
+    </div>
+
+    <div class="skills-modal-section">
+      <div class="skills-modal-heading">Good to have skills</div>
+      <div class="skills-modal-inputs" id="goodToHaveSkillInputs"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSkillsModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveSkillsModal()">Save skills</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================================================
+ * SCORING ENGINE — single source of truth, used by every view
+ * ====================================================================== */
+const ScoringEngine = (function () {
+  const DEFAULTS = { maxRawScore:5, totalWeightTarget:100, thresholds:{green:60, orange:50}, treatUnratedAs:0 };
+  function isFiniteNumber(n){ return typeof n === 'number' && Number.isFinite(n); }
+  function round(v,d){ const f=Math.pow(10,d||0); return Math.round(v*f)/f; }
+  function normalizeScore(rawScore, options){
+    const opts = Object.assign({}, DEFAULTS, options);
+    const value = (rawScore===null||rawScore===undefined) ? opts.treatUnratedAs : rawScore;
+    return Math.max(0, Math.min(opts.maxRawScore, value)) / opts.maxRawScore;
+  }
+  function applyWeightage(n, w){ return n * w; }
+  function getBreakdown(categories, options){
+    const opts = Object.assign({}, DEFAULTS, options);
+    return categories.map(cat => {
+      const normalizedScore = normalizeScore(cat.score, opts);
+      const contribution = applyWeightage(normalizedScore, cat.weight);
+      return { name: cat.name, rawScore: cat.score, weight: cat.weight, normalizedScore: round(normalizedScore,4), contribution: round(contribution,4) };
+    });
+  }
+  function calculateWeightedScore(categories, options){ return getBreakdown(categories, options).reduce((s,i)=>s+i.contribution,0); }
+  function generateGrade(score, options){
+    const opts = Object.assign({}, DEFAULTS, options); const t = opts.thresholds;
+    if (score >= t.green) return { status:'Green', recommendation:'Recommended / Shortlist' };
+    if (score >= t.orange) return { status:'Orange', recommendation:'Hold / Client Review' };
+    return { status:'Red', recommendation:'Reject / Not Fit' };
+  }
+  function validateCategories(categories, options){
+    const opts = Object.assign({}, DEFAULTS, options);
+    let sum = 0; categories.forEach(c => sum += (isFiniteNumber(c.weight) ? c.weight : 0));
+    const errors = sum !== opts.totalWeightTarget ? [`Total weight is ${sum}, must equal ${opts.totalWeightTarget}`] : [];
+    return { valid: errors.length===0, errors };
+  }
+  function generateFitmentScore(categories, options){
+    const opts = Object.assign({}, DEFAULTS, options);
+    const validation = validateCategories(categories, opts);
+    if (!validation.valid) return { valid:false, errors:validation.errors, fitmentScore:null, status:null, recommendation:null, breakdown:[] };
+    const breakdown = getBreakdown(categories, opts);
+    const fitmentScore = round(calculateWeightedScore(categories, opts), 0);
+    const grade = generateGrade(fitmentScore, opts);
+    return { valid:true, errors:[], fitmentScore, status:grade.status, recommendation:grade.recommendation, breakdown };
+  }
+  return { normalizeScore, applyWeightage, getBreakdown, calculateWeightedScore, generateGrade, generateFitmentScore, validateCategories };
+})();
+
+/* ======================================================================
+ * CATEGORY CONFIG — 9 original weighted parameters grouped into
+ * Technical / Communication / Projects (weights preserved, sum to 100)
+ * ====================================================================== */
+const CATEGORY_CONFIG = [
+  { key:'technical', label:'Technical', weight:50, questions:[
+      { key:'must_have',     label:'Must-Have Skill Match',    subWeight:25 },
+      { key:'good_to_have',  label:'Good-to-Have Skill Match', subWeight:10 },
+      { key:'problem_solve', label:'Problem Solving',          subWeight:10 },
+      { key:'learning',      label:'Learning Agility',         subWeight:5  },
+  ]},
+  { key:'communication', label:'Communication', weight:20, questions:[
+      { key:'comm_skill', label:'Communication Skill',    subWeight:10 },
+      { key:'attitude',   label:'Attitude & Culture Fit', subWeight:10 },
+  ]},
+  { key:'projects', label:'Projects', weight:30, questions:[
+      { key:'experience',  label:'Relevant Experience',       subWeight:15 },
+      { key:'domain',      label:'Domain / Industry Fit',     subWeight:10 },
+      { key:'notice_comp', label:'Notice / Compensation Fit', subWeight:5  },
+  ]},
+];
+const ALL_QUESTIONS = CATEGORY_CONFIG.flatMap(c => c.questions.map(q => ({ ...q, categoryLabel: c.label })));
+
+/* ======================================================================
+ * STORAGE ADAPTER
+ * window.storage only exists when this file is rendered inside Claude.ai's
+ * own artifact viewer. When opened as a standalone downloaded file (the
+ * normal way to actually use this tool), that API isn't present — so we
+ * fall back to localStorage, which works fine in a real browser tab.
+ * ====================================================================== */
+const Storage = {
+  hasClaudeStorage: typeof window.storage !== 'undefined' && window.storage !== null,
+
+  async get(key) {
+    if (this.hasClaudeStorage) {
+      try {
+        const result = await window.storage.get(key, false);
+        return result ? result.value : null;
+      } catch (err) {
+        return null; // key not found
+      }
+    }
+    try { return localStorage.getItem(key); }
+    catch (err) { console.error('localStorage read failed:', err); return null; }
+  },
+
+  async set(key, value) {
+    if (this.hasClaudeStorage) {
+      try { await window.storage.set(key, value, false); }
+      catch (err) { console.error('window.storage write failed:', err); }
+      return;
+    }
+    try { localStorage.setItem(key, value); }
+    catch (err) { console.error('localStorage write failed:', err); }
+  },
+
+  /** Lists every stored key starting with `prefix`. Used by the admin console to find every recruiter who has ever logged in. */
+  async list(prefix) {
+    if (this.hasClaudeStorage) {
+      try {
+        const result = await window.storage.list(prefix, false);
+        return result ? result.keys : [];
+      } catch (err) {
+        return [];
+      }
+    }
+    const keys = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf(prefix) === 0) keys.push(k);
+      }
+    } catch (err) { console.error('localStorage list failed:', err); }
+    return keys;
+  }
+};
+
+/* ======================================================================
+ * GOOGLE SHEETS SYNC
+ * Paste the Web App URL from your deployed Apps Script (see SETUP.md /
+ * Code.gs) below. Until this is filled in, the tool works exactly as
+ * before on local/browser storage only — Sheets sync is fully optional
+ * and never blocks or breaks the app if it's missing or unreachable.
+ *
+ * How it works: one master Google Sheet holds a "Recruiters" tab (visible
+ * only to the admin who owns the sheet) plus one tab per recruiter,
+ * named after their email. Every time a recruiter's workspace changes,
+ * their tab is fully overwritten with their current candidate list —
+ * so the sheet is always a live, automated mirror of the site. Nothing
+ * is read back from Sheets into the app; Sheets is a one-way, always-
+ * up-to-date export, not the app's database.
+ * ====================================================================== */
+const CONFIG = {
+  // Paste your deployed Apps Script Web App URL here, e.g.
+  // 'https://script.google.com/macros/s/AKfycb.../exec'
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbyb4YfUngUWCpp5LNmU8CjKDFgd3bx6Sdzzu2iIlFzMvbV1Ax8jaiT1v2MavqFXwzin/exec'
+};
+
+const GSheetSync = {
+  enabled() { return !!CONFIG.GAS_URL; },
+
+  /** Builds the exact same column layout used by the CSV export, so Sheets and the CSV download never drift apart. */
+  buildRows(email, workspace) {
+    return workspace.candidates.map(c => {
+      const role = workspace.roles.find(r => r.id === c.roleId);
+      const result = computeResult(c.ratings);
+      const subtotalsByCategory = {};
+      result.breakdown.forEach(b => { subtotalsByCategory[b.name] = Math.round(b.normalizedScore * 100); });
+      return [
+        role ? role.name : 'Unknown role', c.name, c.contact || '', c.source || '', c.company || '',
+        c.currentCtc ?? '', c.expectedCtc ?? '', c.notice || '', c.experience ?? '',
+        ...ALL_QUESTIONS.map(q => c.ratings[q.key] ?? ''),
+        subtotalsByCategory['Technical'] ?? '', subtotalsByCategory['Communication'] ?? '', subtotalsByCategory['Projects'] ?? '',
+        result.fitmentScore ?? '', result.status || 'Unrated', result.recommendation || '', c.notes || '', c.id
+      ];
+    });
+  },
+
+  /** Fire-and-forget push of one recruiter's full workspace to their Sheets tab. Never throws — failures just update the sync status pill. */
+  async syncNow(email, workspace) {
+    if (!this.enabled()) return null;
+    setSyncStatus('syncing');
+    try {
+      const res = await fetch(CONFIG.GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight against Apps Script
+        body: JSON.stringify({
+          action: 'syncWorkspace',
+          email,
+          roles: workspace.roles.length,
+          candidates: workspace.candidates.length,
+          rows: this.buildRows(email, workspace)
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Unknown error from Apps Script');
+      workspace.sheetUrl = data.result.tabUrl;
+      setSyncStatus('synced');
+      return data.result.tabUrl;
+    } catch (err) {
+      console.error('Google Sheets sync failed:', err);
+      setSyncStatus('error');
+      return null;
+    }
+  },
+
+  /** Admin-only: pulls the live Recruiters master list straight from the Sheet (works across every browser/device, unlike scanning local storage). */
+  async listRecruiters() {
+    if (!this.enabled()) return null;
+    try {
+      const res = await fetch(CONFIG.GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'listRecruiters' })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Unknown error from Apps Script');
+      return data.result;
+    } catch (err) {
+      console.error('Could not load recruiter list from Google Sheets:', err);
+      return null;
+    }
+  }
+};
+
+/** Small status pill next to the avatar so recruiters can see their sheet is (or isn't) up to date. */
+function setSyncStatus(mode) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (!GSheetSync.enabled()) { el.style.display = 'none'; return; }
+  el.style.display = 'inline';
+  if (mode === 'syncing') { el.textContent = '⏳ Syncing sheet...'; el.style.color = '#B9BDD1'; }
+  else if (mode === 'synced') { el.textContent = '✓ Sheet up to date'; el.style.color = '#6C86D6'; }
+  else { el.textContent = '⚠ Sheet sync failed'; el.style.color = '#D98080'; }
+}
+
+/* ======================================================================
+ * MULTI-RECRUITER DATA STORE — backed by Storage (persists across page
+ * refreshes for the same login email), with an in-memory cache so every
+ * render doesn't re-fetch. Personal (non-shared) storage — each
+ * recruiter's data is private.
+ * ====================================================================== */
+const db = { users: {} }; // in-memory cache: { [email]: workspace }
+
+function storageKey(email) { return 'fitment_workspace_' + email.trim().toLowerCase(); }
+
+function createEmptyWorkspace() {
+  const roleId = 'role-1';
+  return {
+    roles: [{
+      id: roleId, name: 'Senior QA Engineer', employmentType: 'FTE',
+      mustHaveSkills: ['Test Automation', 'API Testing', '', '', ''],
+      goodToHaveSkills: ['Performance Testing', 'CI/CD', '', '', '']
+    }],
+    activeRoleId: roleId,
+    candidates: [],
+    idSeq: 1,
+  };
+}
+
+/** Loads a user's workspace from persistent storage (or creates + saves a new empty one). Caches in `db.users`. */
+async function loadUser(email) {
+  const key = email.trim().toLowerCase();
+  const raw = await Storage.get(storageKey(key));
+  if (raw) {
+    try {
+      db.users[key] = JSON.parse(raw);
+    } catch (err) {
+      console.error('Saved workspace was corrupted, starting fresh:', err);
+      db.users[key] = createEmptyWorkspace();
+      await persistWorkspace(key);
+    }
+  } else {
+    db.users[key] = createEmptyWorkspace();
+    await persistWorkspace(key);
+  }
+  return db.users[key];
+}
+
+/** Writes the given user's current in-memory workspace to persistent storage. Call after every mutation. */
+async function persistWorkspace(email) {
+  const key = (email || state.currentUserEmail).trim().toLowerCase();
+  await Storage.set(storageKey(key), JSON.stringify(db.users[key]));
+  GSheetSync.syncNow(key, db.users[key]); // fire-and-forget — never blocks the UI, never throws
+}
+
+/* ======================================================================
+ * SESSION STATE
+ * ====================================================================== */
+const state = {
+  currentUserEmail: null,
+  isAdmin: false,
+  formRatings: {},
+  editingCandidateId: null,
+  selectedCandidateId: null,
+};
+
+function currentUser() { return db.users[state.currentUserEmail]; }
+function activeRole() { const u = currentUser(); return u.roles.find(r => r.id === u.activeRoleId) || u.roles[0]; }
+function roleCandidates() { const u = currentUser(); return u.candidates.filter(c => c.roleId === u.activeRoleId); }
+
+/* ======================================================================
+ * CORE CALCULATION — one function every view calls, so results never drift
+ * ====================================================================== */
+function computeResult(ratings) {
+  const engineCategories = CATEGORY_CONFIG.map(cat => {
+    const rated = cat.questions.filter(q => ratings[q.key] !== undefined);
+    const avgScore = rated.length ? rated.reduce((s,q) => s + ratings[q.key], 0) / rated.length : null;
+    return { name: cat.label, weight: cat.weight, score: avgScore };
+  });
+  return ScoringEngine.generateFitmentScore(engineCategories);
+}
+
+/* ======================================================================
+ * ROUTER
+ * ====================================================================== */
+function navigateTo(viewName, params) {
+  document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + viewName).classList.add('active');
+  document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === viewName));
+
+  if (viewName === 'dashboard') renderDashboard();
+  if (viewName === 'form') renderForm();
+  if (viewName === 'assessment') renderAssessment(params && params.candidateId);
+  if (viewName === 'admin') renderAdmin();
+  window.scrollTo(0,0);
+}
+
+/* ======================================================================
+ * LOGIN / SIGN OUT — any email+password signs in; data is scoped to email.
+ * The single reserved address admin@fitment.com opens the Admin Console
+ * instead of a recruiter workspace.
+ * ====================================================================== */
+const ADMIN_EMAIL = 'admin@fitment.com';
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) return;
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Loading...';
+
+  state.isAdmin = email.toLowerCase() === ADMIN_EMAIL;
+  state.currentUserEmail = email.toLowerCase();
+  state.editingCandidateId = null;
+
+  document.getElementById('signedInAs').textContent = email;
+  document.getElementById('navAvatar').textContent = email.slice(0,2).toUpperCase();
+  document.getElementById('view-login').style.display = 'none';
+  document.getElementById('view-app').style.display = 'block';
+
+  // Toggle recruiter-only chrome vs admin-only chrome
+  document.getElementById('recruiterSidebar').style.display = state.isAdmin ? 'none' : 'block';
+  document.getElementById('navAdminBtn').style.display = state.isAdmin ? 'inline' : 'none';
+  ['dashboard','form','assessment'].forEach(v => {
+    document.querySelectorAll(`[data-view="${v}"]`).forEach(el => el.style.display = state.isAdmin ? 'none' : '');
+  });
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Sign in';
+
+  if (state.isAdmin) {
+    navigateTo('admin');
+  } else {
+    await loadUser(email); // fetches saved data for this email, or creates+saves a fresh empty workspace
+    renderRoleList();
+    navigateTo('dashboard');
+  }
+});
+function signOut() {
+  state.currentUserEmail = null;
+  state.isAdmin = false;
+  document.getElementById('view-app').style.display = 'none';
+  document.getElementById('view-login').style.display = 'flex';
+  document.getElementById('loginForm').reset();
+  document.getElementById('recruiterSidebar').style.display = 'block';
+  document.getElementById('navAdminBtn').style.display = 'none';
+  ['dashboard','form','assessment'].forEach(v => {
+    document.querySelectorAll(`[data-view="${v}"]`).forEach(el => el.style.display = '');
+  });
+}
+
+/* ======================================================================
+ * ROLES — add and switch roles from the sidebar
+ * ====================================================================== */
+function renderRoleList() {
+  const u = currentUser();
+  document.getElementById('roleList').innerHTML = u.roles.map(r => {
+    const must = roleMustHaveSkills(r);
+    const good = roleGoodToHaveSkills(r);
+    const mustHtml = must.length
+      ? must.map(s => `<span style="display:block;">${s}</span>`).join('')
+      : `<span style="display:block;">None set yet</span>`;
+    const goodHtml = good.length
+      ? good.map(s => `<span style="display:block;">${s}</span>`).join('')
+      : `<span style="display:block;">None set yet</span>`;
+    return `
+      <div class="role-row">
+        <button class="sidebar-link ${r.id === u.activeRoleId ? 'active' : ''}" onclick="setActiveRole('${r.id}')">
+          <span class="ic"></span> ${r.name} <span style="font-size:9.5px; font-weight:700; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:1px 5px; margin-left:4px;">${roleEmploymentType(r)}</span>
+        </button>
+        <div class="role-skills">
+          <div class="role-skills-heading">Must have skills</div>
+          ${mustHtml}
+          <div class="role-skills-heading">Good to have skills</div>
+          ${goodHtml}
+          <a class="role-edit-skills" onclick="editRoleSkills('${r.id}')">Edit</a>
+        </div>
+      </div>`;
+  }).join('');
+}
+function setActiveRole(roleId) {
+  currentUser().activeRoleId = roleId;
+  persistWorkspace();
+  renderRoleList();
+  const current = document.querySelector('.view-section.active').id.replace('view-','');
+  navigateTo(current);
+}
+const SKILLS_PER_CATEGORY = 5;
+
+/** Reads a role's Must-Have skills, migrating the old 2-skill "topSkills" field the first time it's touched. */
+function roleMustHaveSkills(role) {
+  const source = (role.mustHaveSkills && role.mustHaveSkills.length) ? role.mustHaveSkills : (role.topSkills || []);
+  return source.filter(Boolean).slice(0, SKILLS_PER_CATEGORY);
+}
+/** Reads a role's Good-to-Have skills. */
+function roleGoodToHaveSkills(role) {
+  return (role.goodToHaveSkills || []).filter(Boolean).slice(0, SKILLS_PER_CATEGORY);
+}
+
+/** Reads a role's engagement type, defaulting older roles (created before this field existed) to FTE. */
+function roleEmploymentType(role) { return (role && role.employmentType) || 'FTE'; }
+
+function addRole() {
+  document.getElementById('empTypeModalOverlay').classList.add('open'); // step 1: C2H or FTE
+}
+function closeEmpTypeModal() {
+  document.getElementById('empTypeModalOverlay').classList.remove('open');
+}
+
+/** Step 2 — called once the recruiter picks C2H or FTE. Prompts for the role name, creates the
+ * role tagged with that engagement type, then opens the usual must-have/good-to-have skills modal. */
+function chooseEmploymentType(employmentType) {
+  closeEmpTypeModal();
+  const name = prompt('New role name (e.g. "Product Designer"):');
+  if (!name || !name.trim()) return;
+
+  const u = currentUser();
+  const id = 'role-' + (u.roles.length + 1) + '-' + Date.now();
+  u.roles.push({
+    id, name: name.trim(), employmentType,
+    mustHaveSkills: new Array(SKILLS_PER_CATEGORY).fill(''),
+    goodToHaveSkills: new Array(SKILLS_PER_CATEGORY).fill('')
+  });
+  u.activeRoleId = id; // switch straight to the new role, which starts empty
+  persistWorkspace();
+  renderRoleList();
+  navigateTo('dashboard');
+  openSkillsModal(id); // every new role immediately prompts for its 5 must-have + 5 good-to-have skills
+}
+
+/* ======================================================================
+ * SKILLS EDIT MODAL — shared by "Edit" (sidebar/dashboard) and the
+ * auto-open after creating a new role. Always shows 5 Must-Have and
+ * 5 Good-to-Have skill fields for whichever role is being edited.
+ * ====================================================================== */
+let skillsModalRoleId = null;
+
+function renderSkillInputRow(prefix, index, value) {
+  const safeValue = String(value || '').replace(/"/g, '&quot;');
+  return `<input type="text" id="${prefix}Skill${index}" placeholder="Skill ${index + 1}" value="${safeValue}">`;
+}
+
+function openSkillsModal(roleId) {
+  const u = currentUser();
+  const role = u.roles.find(r => r.id === roleId);
+  if (!role) return;
+  skillsModalRoleId = roleId;
+
+  const must = roleMustHaveSkills(role);
+  const good = roleGoodToHaveSkills(role);
+
+  document.getElementById('skillsModalTitle').textContent = `Edit skills for "${role.name}"`;
+  document.getElementById('mustHaveSkillInputs').innerHTML = Array.from({ length: SKILLS_PER_CATEGORY })
+    .map((_, i) => renderSkillInputRow('must', i, must[i])).join('');
+  document.getElementById('goodToHaveSkillInputs').innerHTML = Array.from({ length: SKILLS_PER_CATEGORY })
+    .map((_, i) => renderSkillInputRow('good', i, good[i])).join('');
+
+  document.getElementById('skillsModalOverlay').classList.add('open');
+}
+
+function closeSkillsModal() {
+  document.getElementById('skillsModalOverlay').classList.remove('open');
+  skillsModalRoleId = null;
+}
+
+function saveSkillsModal() {
+  const u = currentUser();
+  const role = u.roles.find(r => r.id === skillsModalRoleId);
+  if (!role) { closeSkillsModal(); return; }
+
+  const must = [];
+  const good = [];
+  for (let i = 0; i < SKILLS_PER_CATEGORY; i++) {
+    must.push((document.getElementById('mustSkill' + i).value || '').trim());
+    good.push((document.getElementById('goodSkill' + i).value || '').trim());
+  }
+  role.mustHaveSkills = must;
+  role.goodToHaveSkills = good;
+  delete role.topSkills; // fully migrated off the old 2-skill field
+
+  persistWorkspace();
+  closeSkillsModal();
+  renderRoleList();
+  const current_view = document.querySelector('.view-section.active').id.replace('view-', '');
+  navigateTo(current_view); // refresh whichever view is open so the skills update everywhere they're shown
+}
+
+/** Entry point used by the sidebar and dashboard "Edit" links — opens the shared skills modal for this role. */
+function editRoleSkills(roleId) {
+  openSkillsModal(roleId);
+}
+
+/* ======================================================================
+ * SHARED COMPONENT: ScoreGauge (fixed — absolute-positioned readout,
+ * so it never overlaps or misaligns with the arc regardless of size)
+ * ====================================================================== */
+function ScoreGauge(containerId, score, size = 200) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const height = size/2 + 16;
+  const radius = size/2 - 14;
+  const circumference = Math.PI * radius;
+  const pct = Math.max(0, Math.min(100, score||0)) / 100;
+  const offset = circumference * (1 - pct);
+  const color = score >= 60 ? 'var(--green)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+  const fontSize = Math.round(size * 0.145);
+
+  el.innerHTML = `
+    <div class="gauge-canvas" style="width:${size}px;height:${height}px;">
+      <svg width="${size}" height="${height}" viewBox="0 0 ${size} ${height}">
+        <path d="M 14 ${size/2} A ${radius} ${radius} 0 0 1 ${size-14} ${size/2}" fill="none" stroke="var(--surface-alt)" stroke-width="14" stroke-linecap="round" />
+        <path d="M 14 ${size/2} A ${radius} ${radius} 0 0 1 ${size-14} ${size/2}" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"
+              stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
+      </svg>
+      <div class="gauge-readout" style="font-size:${fontSize}px;">${score||0}<span class="of100" style="font-size:${Math.round(fontSize*0.4)}px;"> / 100</span></div>
+    </div>`;
+}
+
+/* ======================================================================
+ * SHARED COMPONENT: CandidateCard
+ * ====================================================================== */
+function CandidateCard(c) {
+  const result = computeResult(c.ratings);
+  const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const score = result.fitmentScore ?? 0;
+  const statusClass = result.status ? result.status.toLowerCase() : 'pending';
+  const statusLabel = result.status || 'Unrated';
+  const role = currentUser().roles.find(r => r.id === c.roleId);
+  const roleName = role ? role.name : 'Unknown role';
+  return `
+    <div class="candidate-card" onclick="goToCandidateAssessment('${c.id}')" title="Click to view ${c.name}'s assessment">
+      <div class="initials">${initials}</div>
+      <div><div class="name">${c.name}</div><div class="meta">${c.experience ?? '—'} yrs exp · ${c.source || '—'} · <span style="color:var(--accent);font-weight:600;">${roleName}</span></div></div>
+      <div class="score">${score}</div>
+      <div>${ProgressBar(score, statusClass)}</div>
+      <span class="status-pill ${statusClass}">${statusLabel}</span>
+      <div class="actions">
+        <a class="edit-link" onclick="event.stopPropagation(); startEditCandidate('${c.id}')">Edit</a>
+        <a class="edit-link" style="color:var(--red);" onclick="event.stopPropagation(); deleteCandidate('${c.id}')">Delete</a>
+        <span class="view-arrow">→</span>
+      </div>
+    </div>`;
+}
+
+/* ======================================================================
+ * SHARED COMPONENT: ProgressBar
+ * ====================================================================== */
+function ProgressBar(score, statusClass) {
+  return `<div class="progress-bar"><div class="fill ${statusClass==='pending'?'accent':statusClass}" style="width:${score}%"></div></div>`;
+}
+
+/**
+ * Candidates can belong to any of the user's roles. Since the assessment
+ * view (and its mini candidate list) is scoped to whichever role is
+ * currently active, clicking a candidate from a *different* role first
+ * switches the active role so the whole app stays in a consistent state.
+ */
+function goToCandidateAssessment(candidateId) {
+  const u = currentUser();
+  const candidate = u.candidates.find(c => c.id === candidateId);
+  if (candidate && candidate.roleId !== u.activeRoleId) {
+    u.activeRoleId = candidate.roleId;
+    persistWorkspace();
+    renderRoleList();
+  }
+  navigateTo('assessment', { candidateId });
+}
+
+/* ======================================================================
+ * DASHBOARD VIEW
+ * Stat cards / gauge / pie stay scoped to the active role (so "average
+ * score for this role" stays meaningful). The candidate list underneath
+ * shows every candidate saved under this login, across all roles.
+ * ====================================================================== */
+let statusPieChart = null;
+function renderDashboard() {
+  const role = activeRole();
+  const roleScopedCandidates = roleCandidates();
+  const allCandidates = currentUser().candidates;
+  document.getElementById('dashRoleSub').textContent = `${role.name} · signed in as ${state.currentUserEmail}`;
+
+  const must = roleMustHaveSkills(role);
+  const good = roleGoodToHaveSkills(role);
+  document.getElementById('dashTopSkills').innerHTML = `
+    <div class="skills-dash-block">
+      <span class="skill-chip-label">Must have skills</span>
+      <div class="skill-chip-list-row">${must.length ? must.map(s => `<span class="skill-chip">${s}</span>`).join('') : '<span style="font-size:11.5px;color:var(--muted);">None set for this role.</span>'}</div>
+    </div>
+    <div class="skills-dash-block">
+      <span class="skill-chip-label">Good to have skills</span>
+      <div class="skill-chip-list-row">${good.length ? good.map(s => `<span class="skill-chip good">${s}</span>`).join('') : '<span style="font-size:11.5px;color:var(--muted);">None set for this role.</span>'}</div>
+    </div>
+    <a class="role-edit-skills" onclick="editRoleSkills('${role.id}')">Edit skills</a>`;
+
+  const results = roleScopedCandidates.map(c => ({ c, r: computeResult(c.ratings) }));
+  const total = results.length;
+  const scored = results.filter(x => x.r.fitmentScore !== null);
+  const avg = scored.length ? Math.round(scored.reduce((s,x)=>s+x.r.fitmentScore,0)/scored.length) : 0;
+  const green = results.filter(x => x.r.status === 'Green').length;
+  const orange = results.filter(x => x.r.status === 'Orange').length;
+  const red = results.filter(x => x.r.status === 'Red').length;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="label">Total candidates (${role.name})</div><div class="value">${total}</div></div>
+    <div class="stat-card"><div class="label">Average fitment score</div><div class="value">${avg}</div></div>
+    <div class="stat-card green"><div class="label">Green · shortlist</div><div class="value">${green}</div></div>
+    <div class="stat-card red"><div class="label">Red · reject</div><div class="value">${red}</div></div>`;
+
+  ScoreGauge('dashGauge', avg, 200);
+  const statusEl = document.getElementById('dashGaugeStatus');
+  if (total === 0) { statusEl.textContent = 'No candidates yet'; statusEl.className = 'gauge-status pending'; }
+  else { statusEl.textContent = avg>=60?'Trending green':avg>=50?'Trending orange':'Trending red'; statusEl.className = 'gauge-status ' + (avg>=60?'green':avg>=50?'amber':'red'); }
+
+  // ---- All-candidates list: every candidate under this login, any role ----
+  // Rendered BEFORE the Chart.js call below on purpose: if the CDN chart
+  // library fails to load (offline, blocked network, etc.) it must never
+  // be able to take the candidate list down with it.
+  const allResults = allCandidates.map(c => ({ c, r: computeResult(c.ratings) }));
+  const allTotal = allResults.length;
+  document.getElementById('dashListCount').textContent = `${allTotal} candidate${allTotal===1?'':'s'} across all your roles`;
+  const listEl = document.getElementById('candidateList');
+  const headerEl = document.getElementById('candidateListHeader');
+  headerEl.style.display = allTotal === 0 ? 'none' : 'grid';
+
+  const sortedByScore = [...allResults].sort((a,b) => (b.r.fitmentScore ?? -1) - (a.r.fitmentScore ?? -1)).map(x => x.c);
+  listEl.innerHTML = allTotal === 0
+    ? `<div class="empty-state">No candidates yet. <a style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="startAddCandidate()">Add your first candidate →</a></div>`
+    : sortedByScore.map(CandidateCard).join('');
+
+  // ---- Status breakdown pie chart — isolated so a failure here can't break the list above ----
+  renderStatusPie(green, orange, red);
+}
+
+function renderStatusPie(green, orange, red) {
+  const canvas = document.getElementById('statusPie');
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js did not load (offline or blocked CDN)');
+    if (statusPieChart) statusPieChart.destroy();
+    const ctx = canvas.getContext('2d');
+    statusPieChart = new Chart(ctx, {
+      type:'doughnut',
+      data:{ labels:['Green','Orange','Red'], datasets:[{ data:[green,orange,red], backgroundColor:['#2F7D5A','#C77B27','#B14444'], borderColor:'#FFFFFF', borderWidth:2 }] },
+      options:{ responsive:true, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, font:{ family:'Inter', size:12 } } } } }
+    });
+  } catch (err) {
+    console.error('Status pie chart failed to render:', err);
+    canvas.style.display = 'none';
+    canvas.insertAdjacentHTML('afterend',
+      `<div style="font-size:12px;color:var(--muted);padding:20px 0;text-align:center;">Chart unavailable — ${green} Green, ${orange} Orange, ${red} Red</div>`);
+  }
+}
+
+/* ======================================================================
+ * ADD / EDIT CANDIDATE FORM VIEW — live-wired to the scoring engine
+ * ====================================================================== */
+function renderDotSelect(qKey) {
+  let html = '<div class="dot-select">';
+  for (let i=0;i<=5;i++) html += `<button type="button" data-q="${qKey}" data-val="${i}" onclick="setFormRating('${qKey}', ${i})">${i}</button>`;
+  return html + '</div>';
+}
+/** Shows/hides the candidate-detail fields that only apply to C2H roles (Bill Rate, DOJ) vs
+ * FTE roles (Date, Position, Bill Value/Month, Availability), based on the active role's type. */
+function toggleEmploymentFields() {
+  const type = roleEmploymentType(activeRole());
+  document.querySelectorAll('#view-form [data-emp]').forEach(el => {
+    el.style.display = (el.dataset.emp === type) ? '' : 'none';
+  });
+}
+function startAddCandidate() { state.editingCandidateId = null; navigateTo('form'); }
+function startEditCandidate(id) { state.editingCandidateId = id; navigateTo('form'); }
+
+function renderForm() {
+  const editing = state.editingCandidateId ? currentUser().candidates.find(c => c.id === state.editingCandidateId) : null;
+
+  document.getElementById('editBanner').style.display = editing ? 'flex' : 'none';
+  document.getElementById('formTitle').textContent = editing ? `Edit candidate — ${editing.name}` : 'Add candidate';
+  document.getElementById('formSub').textContent = `${activeRole().name} · rate each parameter 0 to 5 — everything below updates live`;
+  document.getElementById('saveBtn').textContent = editing ? 'Save changes' : 'Save candidate';
+
+  document.getElementById('fName').value = editing ? editing.name : '';
+  document.getElementById('fContact').value = editing ? (editing.contact || '') : '';
+  document.getElementById('fEmail').value = editing ? (editing.email || '') : '';
+  document.getElementById('fDob').value = editing ? (editing.dob || '') : '';
+  document.getElementById('fPan').value = editing ? (editing.pan || '') : '';
+  document.getElementById('fSkillSet').value = editing ? (editing.skillSet || '') : '';
+  document.getElementById('fCurrentLocation').value = editing ? (editing.currentLocation || '') : '';
+  document.getElementById('fPreferredLocation').value = editing ? (editing.preferredLocation || '') : '';
+  document.getElementById('fExperience').value = editing && editing.experience ? editing.experience : '';
+  document.getElementById('fRelExp').value = editing && editing.relevantExperience ? editing.relevantExperience : '';
+  document.getElementById('fCompany').value = editing ? (editing.company || '') : '';
+  document.getElementById('fOpenToWork').value = editing ? (editing.openToWork || '') : '';
+  document.getElementById('fLinkedin').value = editing ? (editing.linkedin || '') : '';
+  document.getElementById('fNaukri').value = editing ? (editing.naukri || '') : '';
+  document.getElementById('fCertification').value = editing ? (editing.certification || '') : '';
+  document.getElementById('fCurrentCtc').value = editing && editing.currentCtc ? editing.currentCtc : '';
+  document.getElementById('fExpectedCtc').value = editing && editing.expectedCtc ? editing.expectedCtc : '';
+  document.getElementById('fNotice').value = editing ? (editing.notice || '') : '';
+  document.getElementById('fHighestQualification').value = editing ? (editing.highestQualification || '') : '';
+  document.getElementById('fSource').value = editing ? (editing.source || '') : '';
+  document.getElementById('fNotes').value = editing ? (editing.notes || '') : '';
+  document.getElementById('fBillRate').value = editing ? (editing.billRate || '') : '';
+  document.getElementById('fDoj').value = editing ? (editing.doj || '') : '';
+  document.getElementById('fDate').value = editing ? (editing.date || '') : '';
+  document.getElementById('fPosition').value = editing ? (editing.position || '') : (activeRole().name || '');
+  document.getElementById('fBillValueMonth').value = editing && editing.billValueMonth ? editing.billValueMonth : '';
+  document.getElementById('fAvailability').value = editing ? (editing.availability || '') : '';
+
+  toggleEmploymentFields();
+
+  state.formRatings = editing ? Object.assign({}, editing.ratings) : {};
+
+  document.getElementById('formCategoryCards').innerHTML = CATEGORY_CONFIG.map(cat => `
+    <div class="card" data-cat="${cat.key}">
+      <div class="card-head"><h3>${cat.label}</h3><span class="cat-subtotal" id="formSubtotal-${cat.key}">— <span class="wt">wt ${cat.weight}</span></span></div>
+      <div class="card-sub">Category weight ${cat.weight} of 100</div>
+      ${cat.questions.map(q => `<div class="rating-row"><div class="rating-name">${q.label}</div>${renderDotSelect(q.key)}</div>`).join('')}
+    </div>`).join('');
+
+  // reflect any pre-filled ratings (edit mode) on the dot selects
+  document.querySelectorAll('#formCategoryCards button').forEach(b => {
+    const q = b.dataset.q, v = parseInt(b.dataset.val);
+    b.classList.toggle('selected', state.formRatings[q] === v);
+  });
+
+  updateFormPreview();
+}
+function setFormRating(qKey, val) {
+  state.formRatings[qKey] = val;
+  document.querySelectorAll(`#view-form button[data-q="${qKey}"]`).forEach(b => b.classList.toggle('selected', parseInt(b.dataset.val)===val));
+  updateFormPreview();
+}
+function updateFormPreview() {
+  const result = computeResult(state.formRatings);
+  CATEGORY_CONFIG.forEach((cat, idx) => {
+    const b = result.breakdown[idx];
+    document.getElementById(`formSubtotal-${cat.key}`).innerHTML = `${Math.round(b.normalizedScore*100)} <span class="wt">wt ${cat.weight}</span>`;
+  });
+  ScoreGauge('formGauge', result.fitmentScore || 0, 200);
+  const statusEl = document.getElementById('formGaugeStatus');
+  const doneCount = Object.keys(state.formRatings).length;
+  if (doneCount === 0) { statusEl.textContent = 'Awaiting ratings'; statusEl.className = 'gauge-status pending'; }
+  else { statusEl.textContent = `${result.status} — ${result.recommendation}`; statusEl.className = `gauge-status ${result.status.toLowerCase()}`; }
+
+  document.getElementById('formSubtotalList').innerHTML = result.breakdown.map(b =>
+    `<div class="row"><span>${b.name}</span><span>${Math.round(b.normalizedScore*100)}/100</span></div>`
+  ).join('') + `<div class="row"><span>Final Fitment (${doneCount}/${ALL_QUESTIONS.length} rated)</span><span>${result.fitmentScore ?? 0}/100</span></div>`;
+}
+function saveCandidate() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { alert('Candidate name is required.'); return; }
+  const u = currentUser();
+
+  const fields = {
+    name,
+    contact: document.getElementById('fContact').value,
+    email: document.getElementById('fEmail').value,
+    dob: document.getElementById('fDob').value,
+    pan: document.getElementById('fPan').value.trim().toUpperCase(),
+    skillSet: document.getElementById('fSkillSet').value,
+    currentLocation: document.getElementById('fCurrentLocation').value,
+    preferredLocation: document.getElementById('fPreferredLocation').value,
+    experience: Number(document.getElementById('fExperience').value) || null,
+    relevantExperience: Number(document.getElementById('fRelExp').value) || null,
+    company: document.getElementById('fCompany').value,
+    openToWork: document.getElementById('fOpenToWork').value,
+    linkedin: document.getElementById('fLinkedin').value,
+    naukri: document.getElementById('fNaukri').value,
+    certification: document.getElementById('fCertification').value,
+    currentCtc: Number(document.getElementById('fCurrentCtc').value) || null,
+    expectedCtc: Number(document.getElementById('fExpectedCtc').value) || null,
+    notice: document.getElementById('fNotice').value,
+    highestQualification: document.getElementById('fHighestQualification').value,
+    source: document.getElementById('fSource').value,
+    notes: document.getElementById('fNotes').value,
+    billRate: document.getElementById('fBillRate').value,
+    doj: document.getElementById('fDoj').value,
+    date: document.getElementById('fDate').value,
+    position: document.getElementById('fPosition').value,
+    billValueMonth: Number(document.getElementById('fBillValueMonth').value) || null,
+    availability: document.getElementById('fAvailability').value,
+    ratings: Object.assign({}, state.formRatings),
+  };
+
+  let savedId;
+  if (state.editingCandidateId) {
+    const idx = u.candidates.findIndex(c => c.id === state.editingCandidateId);
+    if (idx !== -1) {
+      u.candidates[idx] = Object.assign({}, u.candidates[idx], fields); // keep id + roleId, update everything else
+      savedId = u.candidates[idx].id;
+    }
+  } else {
+    const newCandidate = Object.assign({ id: 'c' + (u.idSeq++), roleId: u.activeRoleId }, fields);
+    u.candidates.push(newCandidate);
+    savedId = newCandidate.id;
+  }
+
+  state.editingCandidateId = null;
+  persistWorkspace();
+  navigateTo('assessment', { candidateId: savedId });
+}
+
+/** Deletes a candidate — always behind an explicit confirmation, never silent or automatic. */
+function deleteCandidate(id) {
+  const u = currentUser();
+  const candidate = u.candidates.find(c => c.id === id);
+  if (!candidate) return;
+
+  const confirmed = confirm(`Delete ${candidate.name}? This removes their record and ratings permanently and cannot be undone.`);
+  if (!confirmed) return;
+
+  u.candidates = u.candidates.filter(c => c.id !== id);
+  persistWorkspace();
+
+  if (state.selectedCandidateId === id) state.selectedCandidateId = null;
+
+  const current = document.querySelector('.view-section.active').id.replace('view-','');
+  navigateTo(current === 'assessment' ? 'dashboard' : current);
+}
+
+/* ======================================================================
+ * ASSESSMENT DETAIL VIEW — RadarChart, breakdown table, weight PieChart
+ * ====================================================================== */
+let radarChartInstance = null, weightPieInstance = null;
+
+function renderAssessCandidateList(selectedId) {
+  const candidates = roleCandidates();
+  document.getElementById('assessListCount').textContent = `${candidates.length} candidate${candidates.length===1?'':'s'} · ${activeRole().name}`;
+  const listEl = document.getElementById('assessCandidateList');
+
+  if (candidates.length === 0) {
+    listEl.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:8px 4px;">No candidates yet for this role.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = candidates.map(c => {
+    const r = computeResult(c.ratings);
+    const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const statusClass = r.status ? r.status.toLowerCase() : 'pending';
+    const isSelected = c.id === selectedId;
+    return `
+      <div class="mini-candidate ${isSelected ? 'selected' : ''}" onclick="navigateTo('assessment', {candidateId:'${c.id}'})">
+        <div class="initials">${initials}</div>
+        <div class="info"><div class="name">${c.name}</div><div class="meta">${c.experience ?? '—'} yrs · ${c.source || '—'}</div></div>
+        <span class="dot ${statusClass}"></span>
+        <span class="score">${r.fitmentScore ?? '—'}</span>
+      </div>`;
+  }).join('');
+}
+
+function renderAssessment(candidateId) {
+  const candidates = roleCandidates();
+  const id = candidateId || state.selectedCandidateId || (candidates[0] && candidates[0].id);
+  state.selectedCandidateId = id;
+  const container = document.getElementById('assessmentContent');
+  const candidate = candidates.find(c => c.id === id);
+
+  renderAssessCandidateList(id);
+
+  if (!candidate) {
+    document.getElementById('assessBreadcrumb').textContent = 'No candidate selected';
+    container.innerHTML = `<div class="empty-state">No candidate selected yet for ${activeRole().name}. <a style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="startAddCandidate()">Add a candidate →</a></div>`;
+    return;
+  }
+
+  document.getElementById('assessBreadcrumb').textContent = candidate.name;
+  const result = computeResult(candidate.ratings);
+  const initials = candidate.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const statusClass = result.status ? result.status.toLowerCase() : 'pending';
+  const candidateRole = currentUser().roles.find(r => r.id === candidate.roleId);
+  const candidateEmpType = roleEmploymentType(candidateRole);
+  const empTypeFieldsHtml = candidateEmpType === 'C2H'
+    ? `<div><span class="profile-label">Bill Rate</span>${candidate.billRate || '—'}</div>
+       <div><span class="profile-label">DOJ</span>${candidate.doj || '—'}</div>`
+    : `<div><span class="profile-label">Date</span>${candidate.date || '—'}</div>
+       <div><span class="profile-label">Position</span>${candidate.position || '—'}</div>
+       <div><span class="profile-label">Bill Value/Month</span>${candidate.billValueMonth ?? '—'}</div>
+       <div><span class="profile-label">Availability</span>${candidate.availability || '—'}</div>`;
+
+  container.innerHTML = `
+    <div class="candidate-header">
+      <div class="left">
+        <div class="initials">${initials}</div>
+        <div><h1>${candidate.name}</h1><div class="meta">${candidate.experience ?? '—'} yrs exp · ${candidate.source || '—'} · Notice: ${candidate.notice || '—'}</div></div>
+      </div>
+      <div class="right-col">
+        <span class="status-pill ${statusClass}">${result.status || 'Unrated'}</span>
+        <div class="recommendation" style="color:var(--${statusClass==='green'?'green':statusClass==='amber'?'amber':statusClass==='red'?'red':'muted'});">${result.recommendation || 'Not yet scored'}</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary" onclick="startEditCandidate('${candidate.id}')">Edit candidate</button>
+          <button class="btn-secondary" style="color:var(--red); border-color:var(--red-soft);" onclick="deleteCandidate('${candidate.id}')">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:18px;">
+      <h3>Candidate profile</h3><div class="panel-sub">Contact and background information</div>
+      <div class="profile-grid">
+        <div><span class="profile-label">Contact No.</span>${candidate.contact || '—'}</div>
+        <div><span class="profile-label">Email ID</span>${candidate.email || '—'}</div>
+        <div><span class="profile-label">DOB</span>${candidate.dob || '—'}</div>
+        <div><span class="profile-label">PAN No.</span>${candidate.pan || '—'}</div>
+        <div><span class="profile-label">Skill Set</span>${candidate.skillSet || '—'}</div>
+        <div><span class="profile-label">Current Location</span>${candidate.currentLocation || '—'}</div>
+        <div><span class="profile-label">Preferred Location</span>${candidate.preferredLocation || '—'}</div>
+        <div><span class="profile-label">Exp</span>${candidate.experience ?? '—'}${candidate.experience ? ' yrs' : ''}</div>
+        <div><span class="profile-label">Rel Exp</span>${candidate.relevantExperience ?? '—'}${candidate.relevantExperience ? ' yrs' : ''}</div>
+        <div><span class="profile-label">Company Name</span>${candidate.company || '—'}</div>
+        <div><span class="profile-label">Open to Work</span>${candidate.openToWork || '—'}</div>
+        <div><span class="profile-label">LinkedIn ID</span>${candidate.linkedin || '—'}</div>
+        <div><span class="profile-label">Naukri</span>${candidate.naukri || '—'}</div>
+        <div><span class="profile-label">Certification</span>${candidate.certification || '—'}</div>
+        <div><span class="profile-label">CTC</span>${candidate.currentCtc ?? '—'}</div>
+        <div><span class="profile-label">E-CTC</span>${candidate.expectedCtc ?? '—'}</div>
+        <div><span class="profile-label">Notice Period</span>${candidate.notice || '—'}</div>
+        <div><span class="profile-label">Highest Qualification</span>${candidate.highestQualification || '—'}</div>
+        <div><span class="profile-label">Source</span>${candidate.source || '—'}</div>
+        ${empTypeFieldsHtml}
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="panel"><h3>Fitment score</h3><div class="panel-sub">Weighted across Technical, Communication, Projects</div><div class="gauge-wrap"><div id="assessGauge"></div></div></div>
+      <div class="panel"><h3>Parameter breakdown</h3><div class="panel-sub">Rating (0–5) per parameter</div><canvas id="radarChart" height="200"></canvas></div>
+    </div>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Score contribution</h3><div class="panel-sub">Category average × weight = contribution to final score</div>
+        <table class="breakdown-table"><thead><tr><th>Category</th><th>Rating</th><th>Weight</th><th>Contribution</th></tr></thead>
+          <tbody>${result.breakdown.map(b => `<tr><td>${b.name}</td><td>${b.rawScore!==null?b.rawScore.toFixed(1):'—'} / 5</td><td>${b.weight}</td><td>${b.contribution.toFixed(1)}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="panel"><h3>Weight distribution</h3><div class="panel-sub">How this role's 100 points are allocated</div><canvas id="weightPie" height="200"></canvas></div>
+    </div>
+    <div class="panel"><h3>Interviewer notes</h3><div class="panel-sub">Free-text, not scored</div><div class="notes-panel">${candidate.notes || 'No notes recorded.'}</div></div>
+  `;
+
+  ScoreGauge('assessGauge', result.fitmentScore || 0, 200);
+
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js did not load (offline or blocked CDN)');
+
+    if (radarChartInstance) radarChartInstance.destroy();
+    radarChartInstance = new Chart(document.getElementById('radarChart').getContext('2d'), {
+      type:'radar',
+      data:{ labels: ALL_QUESTIONS.map(q=>q.label), datasets:[{ label:'Rating (0-5)', data: ALL_QUESTIONS.map(q => candidate.ratings[q.key] ?? 0),
+        backgroundColor:'rgba(54,84,166,0.15)', borderColor:'#3654A6', pointBackgroundColor:'#3654A6', borderWidth:2 }] },
+      options:{ responsive:true, scales:{ r:{ min:0, max:5, ticks:{ stepSize:1, font:{ size:10 } }, pointLabels:{ font:{ family:'Inter', size:10 } }, grid:{ color:'#DEDCD3' }, angleLines:{ color:'#DEDCD3' } } }, plugins:{ legend:{ display:false } } }
+    });
+
+    if (weightPieInstance) weightPieInstance.destroy();
+    weightPieInstance = new Chart(document.getElementById('weightPie').getContext('2d'), {
+      type:'pie',
+      data:{ labels: CATEGORY_CONFIG.map(c=>c.label), datasets:[{ data: CATEGORY_CONFIG.map(c=>c.weight), backgroundColor:['#3654A6','#66A583','#C77B27'], borderColor:'#FFFFFF', borderWidth:2 }] },
+      options:{ responsive:true, plugins:{ legend:{ position:'right', labels:{ boxWidth:10, font:{ family:'Inter', size:11 } } } } }
+    });
+  } catch (err) {
+    console.error('Assessment charts failed to render:', err);
+    document.getElementById('radarChart').insertAdjacentHTML('afterend', `<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">Chart unavailable (offline or blocked network)</div>`);
+    document.getElementById('weightPie').insertAdjacentHTML('afterend', `<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">Technical 50 · Communication 20 · Projects 30</div>`);
+  }
+}
+
+/* ======================================================================
+ * ADMIN CONSOLE
+ * When a Google Sheets Web App URL is configured (CONFIG.GAS_URL), the
+ * recruiter list comes straight from the master Sheet's "Recruiters" tab
+ * — the real single source of truth, since it sees every recruiter on
+ * every device, not just ones who've signed into this particular browser.
+ * Falls back to scanning local/browser storage keys when Sheets isn't
+ * configured, so the tool still works standalone before setup.
+ * ====================================================================== */
+let lastAdminMasterUrl = null;
+
+async function renderAdmin() {
+  const listEl = document.getElementById('adminRecruiterList');
+  const headerEl = document.getElementById('adminListHeader');
+  const sourceNoteEl = document.getElementById('adminSourceNote');
+  const masterBtn = document.getElementById('openMasterSheetBtn');
+  listEl.innerHTML = `<div class="empty-state">Loading recruiters...</div>`;
+  headerEl.style.display = 'none';
+  masterBtn.style.display = 'none';
+
+  let recruiters = [];
+
+  if (GSheetSync.enabled()) {
+    const result = await GSheetSync.listRecruiters();
+    if (result) {
+      recruiters = result.recruiters.map(r => ({
+        email: r.email, roleCount: r.roles, candidateCount: r.candidates, sheetUrl: r.sheetUrl
+      }));
+      lastAdminMasterUrl = result.masterUrl;
+      sourceNoteEl.textContent = 'Live from the master Google Sheet — every recruiter, on every device.';
+      if (lastAdminMasterUrl) { masterBtn.style.display = 'inline-flex'; }
+    } else {
+      sourceNoteEl.textContent = 'Could not reach the Google Sheet — showing recruiters known to this browser instead.';
+    }
+  }
+
+  if (!GSheetSync.enabled() || recruiters.length === 0) {
+    const keys = await Storage.list('fitment_workspace_');
+    const localRecruiters = [];
+    for (const key of keys) {
+      const email = key.replace('fitment_workspace_', '');
+      const raw = await Storage.get(key);
+      if (!raw) continue;
+      try {
+        const workspace = JSON.parse(raw);
+        localRecruiters.push({ email, roleCount: workspace.roles.length, candidateCount: workspace.candidates.length, sheetUrl: workspace.sheetUrl || null });
+      } catch (err) {
+        console.error(`Could not parse workspace for ${email}:`, err);
+      }
+    }
+    if (recruiters.length === 0) recruiters = localRecruiters;
+    if (!GSheetSync.enabled()) sourceNoteEl.textContent = 'Every recruiter who has signed into this tool on this browser, with a downloadable sheet of their candidates. Add a Google Sheets Web App URL in CONFIG.GAS_URL to see every recruiter, on every device, live.';
+  }
+
+  const totalRecruiters = recruiters.length;
+  const totalCandidates = recruiters.reduce((s, r) => s + r.candidateCount, 0);
+  const totalRoles = recruiters.reduce((s, r) => s + r.roleCount, 0);
+
+  document.getElementById('adminStatGrid').innerHTML = `
+    <div class="stat-card"><div class="label">Recruiters</div><div class="value">${totalRecruiters}</div></div>
+    <div class="stat-card"><div class="label">Total candidates (all recruiters)</div><div class="value">${totalCandidates}</div></div>
+    <div class="stat-card"><div class="label">Total roles (all recruiters)</div><div class="value">${totalRoles}</div></div>`;
+
+  if (totalRecruiters === 0) {
+    listEl.innerHTML = `<div class="empty-state">No recruiters have signed in yet.</div>`;
+    return;
+  }
+
+  headerEl.style.display = 'grid';
+  listEl.innerHTML = recruiters.map(r => `
+    <div class="recruiter-row">
+      <div><div class="email">${r.email}</div></div>
+      <div class="count-badge">${r.roleCount}</div>
+      <div class="count-badge">${r.candidateCount}</div>
+      <button class="btn-opensheet" onclick="window.open('${r.sheetUrl}', '_blank')" ${r.sheetUrl ? '' : 'disabled title="Not synced to Sheets yet"'}>Open sheet ↗</button>
+      <button class="btn-download" onclick="downloadRecruiterSheet('${r.email}', this)" ${r.candidateCount === 0 ? 'disabled title="No candidates to export yet"' : ''}>Download CSV</button>
+    </div>
+  `).join('');
+}
+
+function openMasterSheet() {
+  if (lastAdminMasterUrl) window.open(lastAdminMasterUrl, '_blank');
+}
+
+function csvEscape(value) {
+  const str = value === null || value === undefined ? '' : String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+/** Builds the full candidate CSV (rows + header) for one recruiter's workspace. Shared by the admin export and the recruiter's own self-export, so they never drift apart. */
+function buildCandidateCsv(email, workspace) {
+  const columns = [
+    'Recruiter Email', 'Role', 'Engagement Type', 'Candidate Name', 'Contact No.', 'Email ID', 'DOB', 'PAN No.', 'Skill Set',
+    'Current Location', 'Preferred Location', 'Exp (yrs)', 'Rel Exp (yrs)', 'Company Name',
+    'Open to Work', 'LinkedIn ID', 'Naukri', 'Certification', 'CTC', 'E-CTC', 'Notice Period',
+    'Highest Qualification', 'Source', 'Bill Rate', 'DOJ', 'Date', 'Position', 'Bill Value/Month', 'Availability',
+    ...ALL_QUESTIONS.map(q => q.label + ' (0-5)'),
+    'Technical Subtotal (/100)', 'Communication Subtotal (/100)', 'Projects Subtotal (/100)',
+    'Final Fitment Score (/100)', 'Status', 'Recommendation', 'Interviewer Notes'
+  ];
+
+  const rows = workspace.candidates.map(c => {
+    const role = workspace.roles.find(r => r.id === c.roleId);
+    const result = computeResult(c.ratings);
+    const subtotalsByCategory = {};
+    result.breakdown.forEach(b => { subtotalsByCategory[b.name] = Math.round(b.normalizedScore * 100); });
+
+    return [
+      email, role ? role.name : 'Unknown role', roleEmploymentType(role), c.name, c.contact || '', c.email || '', c.dob || '', c.pan || '', c.skillSet || '',
+      c.currentLocation || '', c.preferredLocation || '', c.experience ?? '', c.relevantExperience ?? '', c.company || '',
+      c.openToWork || '', c.linkedin || '', c.naukri || '', c.certification || '', c.currentCtc ?? '', c.expectedCtc ?? '', c.notice || '',
+      c.highestQualification || '', c.source || '', c.billRate || '', c.doj || '', c.date || '', c.position || '', c.billValueMonth ?? '', c.availability || '',
+      ...ALL_QUESTIONS.map(q => c.ratings[q.key] ?? ''),
+      subtotalsByCategory['Technical'] ?? '', subtotalsByCategory['Communication'] ?? '', subtotalsByCategory['Projects'] ?? '',
+      result.fitmentScore ?? '', result.status || 'Unrated', result.recommendation || '', c.notes || ''
+    ];
+  });
+
+  const csvLines = [columns.map(csvEscape).join(',')].concat(rows.map(r => r.map(csvEscape).join(',')));
+  return csvLines.join('\r\n');
+}
+
+/** Triggers a browser download of the given CSV text under the given filename. */
+function triggerCsvDownload(csvContent, filename) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Admin-only: builds and triggers a CSV download containing everything for one recruiter, loaded from storage by email. */
+async function downloadRecruiterSheet(email, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Preparing...'; }
+
+  const raw = await Storage.get(storageKey(email));
+  if (!raw) { alert('Could not load data for ' + email); if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Download sheet'; } return; }
+  const workspace = JSON.parse(raw);
+
+  triggerCsvDownload(buildCandidateCsv(email, workspace), `fitment_candidates_${email.replace(/[^a-z0-9]/gi,'_')}.csv`);
+
+  if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Download sheet'; }
+}
+
+/** Recruiter self-service: downloads only the signed-in recruiter's own candidates — never anyone else's. */
+function downloadMySheet() {
+  const email = state.currentUserEmail;
+  const workspace = currentUser();
+  if (!workspace || workspace.candidates.length === 0) { alert('No candidates to export yet — add one first.'); return; }
+  triggerCsvDownload(buildCandidateCsv(email, workspace), `fitment_candidates_${email.replace(/[^a-z0-9]/gi,'_')}.csv`);
+}
+</script>
+</body>
+</html>
